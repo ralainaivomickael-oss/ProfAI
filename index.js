@@ -1,4 +1,4 @@
-const { askAI } = require('./ai');   // ← ou './ia' si ton fichier s'appelle ia.js
+const { askAI } = require('./ai');   // ou './ia' si ton fichier s'appelle ia.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -20,48 +20,54 @@ const io = new Server(server, {
 app.use(express.json());
 app.use(cors());
 
+// Route de test (optionnel)
+app.get('/', (req, res) => {
+  res.send('Backend MentorAI est en ligne 🚀');
+});
+
 io.on('connection', (socket) => {
   console.log('🔌 Connexion:', socket.id);
 
-  socket.on('message', (msg) => {
-    console.log('📩 Message reçu de', socket.id, ':', msg.text);
-    io.emit('message', msg);  // écho
-  });
+  // UN SEUL listener pour 'message' – tout est ici
+socket.on('message', async (msg) => {
+  // Sécurité : ignorer les messages vides ou mal formés
+  if (!msg || !msg.text || msg.text.trim() === '') {
+    console.log('Message vide ou invalide ignoré');
+    return;
+  }
 
-  socket.on('disconnect', () => {
-    console.log('🔴 Déconnexion:', socket.id);
-  });
+  console.log('📩 Message reçu de', socket.id, ':', msg.text);
 
-    socket.on('message', async (msg) => { // ← ajoute function après async
-  // ton code ici...
-  console.log('Message reçu :', msg.text);
-
-  // Écho
+  // 1. ÉCHO IMMÉDIAT du message utilisateur (pour que tout le monde le voie)
   io.emit('message', {
     sender: msg.sender || 'user1',
     text: msg.text,
     timestamp: new Date().toISOString()
   });
 
-  // Réponse IA
+  // 2. Réponse de l'IA (seulement si le message n'est pas vide)
   try {
-console.log(">>> typeof generateGeminiResponse =", typeof generateGeminiResponse);
-console.log(">>> generateGeminiResponse existe ?", !!generateGeminiResponse);
+    const reponse = await generateGeminiResponse(msg.text.trim());
 
-    const reponse = await generateGeminiResponse(msg.text);
     io.emit('message', {
       sender: 'IA',
       text: reponse,
       timestamp: new Date().toISOString()
     });
   } catch (err) {
-    console.error('Erreur IA:', err);
-    io.emit('message', { sender: 'IA', text: "Désolé, erreur..." });
+    console.error('Erreur IA:', err.message || err);
+    io.emit('message', {
+      sender: 'IA',
+      text: "Désolé, je rencontre un petit problème technique... Réessaie dans un instant ! 😅",
+      timestamp: new Date().toISOString()
+    });
   }
 });
+  socket.on('disconnect', () => {
+    console.log('🔴 Déconnexion:', socket.id);
+  });
 });
 
 server.listen(3000, () => {
   console.log('🚀 Backend MentorAI démarré sur port 3000');
-});   // ← parenthèse fermante ICI après le callback
-
+});
