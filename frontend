@@ -1,0 +1,43 @@
+import React, { useState, useEffect } from 'react';
+import { View, TextInput, Button, FlatList, Text } from 'react-native';
+import io from 'socket.io-client';
+
+const socket = io('http://TON_IP_LOCAL:3000'); // Remplace TON_IP_LOCAL par ton IP du PC/serveur
+
+export default function App() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+
+  useEffect(() => {
+    socket.on('message', (msg) => {
+      setMessages(prev => [...prev, msg]);
+    });
+  }, []);
+
+  const sendMessage = () => {
+    if (!input) return;
+    socket.emit('message', { sender: 'Moi', text: input });
+    setInput('');
+  };
+
+  return (
+    <View style={{ flex: 1, padding: 20 }}>
+      <FlatList
+        data={messages}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={({ item }) => (
+          <Text style={{ marginVertical: 4 }}>
+            {item.sender}: {item.text}
+          </Text>
+        )}
+      />
+      <TextInput
+        placeholder="Tape ton message..."
+        value={input}
+        onChangeText={setInput}
+        style={{ borderWidth: 1, padding: 10, marginVertical: 10 }}
+      />
+      <Button title="Envoyer" onPress={sendMessage} />
+    </View>
+  );
+}
